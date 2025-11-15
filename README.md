@@ -41,6 +41,18 @@ Ovaj projekat sadrzi sledece komponente:
 
 ## Deployment
 
+U folderu Analytics, pokrenuti:
+
+```bash
+ npm install
+```
+
+U folderu DataManager/DataManager/DataManager, izvrsiti:
+```bash
+ dotnet ef migrations bundle --self-contained -r linux-x64
+```
+i prebaciti u folder /Migration.
+
 Za pokretanje ovog projekta, potreban je **docker compose.**
 
 Projekat se moze pokrenuti komandom:

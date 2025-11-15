@@ -5,3 +5,6 @@
 /DataManager/DataManager/.vs
 household_power_consumption.txt
 /Analytics/node_modules
+/Migration/efbundle
+Migrations/efbundle
+DataManager/DataManager/DataManager/efbundle
