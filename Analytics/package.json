@@ -1,0 +1,18 @@
+{
+  "name": "analytics",
+  "version": "1.0.0",
+  "description": "iots analytics",
+  "main": "index.js",
+  "scripts": {
+    "test": "analytics"
+  },
+  "author": "iontachyon",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.13.2",
+    "body-parser": "^2.2.0",
+    "express": "^5.1.0",
+    "mqtt": "^5.14.1",
+    "nats": "^2.29.3"
+  }
+}

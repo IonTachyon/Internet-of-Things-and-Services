@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+option csharp_namespace = "DataManager";
+
+package datamanager;
+
+service DataManager {
+
+	rpc Create(ElectricInfo) returns (Response);
+	rpc Read(ElectricID) returns (Response);
+	rpc Update(ElectricInfo) returns (Response);
+	rpc Delete(ElectricID) returns (Response);
+
+	rpc ReadAllInDateSpan(DateSpan) returns (Response);
+}
+
+message ElectricID {
+	int32 id = 1;
+}
+
+message ElectricInfo {
+	int32 id = 1;
+	string date = 2;
+	string time = 3;
+	float global_active_power = 4;
+	float global_reactive_power = 5;
+	float voltage = 6;
+	float global_intensity = 7;
+	float sub_metering_1 = 8;
+	float sub_metering_2 = 9;
+	float sub_metering_3 = 10;
+}
+
+message ElectricInfoList {
+	repeated ElectricInfo info = 1;
+}
+
+message DateSpan {
+	string start_date = 1;
+	string end_date = 2;
+}
+message Response {
+	int32 result = 1;
+	string message = 2;
+	ElectricInfoList list = 3;
+}

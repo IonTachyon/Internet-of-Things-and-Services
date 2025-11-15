@@ -1,0 +1,152 @@
+asyncapi: 3.0.0
+info:
+  title: Household Power Consumption API
+  version: 1.0.0
+  description: >-
+    The Household Power Consumption API is an api built to consume and provide
+    information regarding power consumption in the United Kingdom.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+defaultContentType: application/json
+servers:
+  mosquitto_server:
+    host: mqtt://mosquitto:1882
+    protocol: mqtt
+    description: Docker deployed MQTT Broker.
+  nats_server:
+    host: nats://nats:4222
+    protocol: nats
+    description: Docker deployed NATS broker.
+channels:
+  newelectricinfo:
+    description: Channel for transmitting newly generated electrical info.
+    servers:
+      - $ref: '#/servers/mosquitto_server'
+    messages:
+      ElectricInfoGenerated:
+        $ref: '#/components/messages/ElectricInfoGenerated'
+  highvoltage:
+    description: Channel for transmitting electric info objects with a high voltage.
+    servers:
+      - $ref: '#/servers/mosquitto_server'
+    messages:
+      ElectricInfoGenerated:
+        $ref: '#/components/messages/ElectricInfoGenerated'
+  analyzed:
+    description: Channel for transmitting the class of an analyzed electric info object.
+    servers:
+      - $ref: '#/servers/nats_server'
+    messages:
+      AnalysisGenerated:
+        $ref: '#/components/messages/AnalysisGenerated'
+operations:
+  onElectricInfoSent:
+    title: Send Generated Electric Info
+    description: >-
+      Operation used to send newly generated Electric Info between various
+      microservices.
+    action: send
+    messages:
+      - $ref: '#/channels/newelectricinfo/messages/ElectricInfoGenerated'
+    channel:
+      $ref: '#/channels/newelectricinfo'
+  onElectricInfoRecieved:
+    title: Recieve Generated Electric Info
+    description: >-
+      Operation used to recieved newly generated Electric Info between various
+      microservices.
+    action: receive
+    messages:
+      - $ref: '#/channels/newelectricinfo/messages/ElectricInfoGenerated'
+    channel:
+      $ref: '#/channels/newelectricinfo'
+  onHighVoltageSent:
+    action: send
+    messages:
+      - $ref: '#/channels/highvoltage/messages/ElectricInfoGenerated'
+    channel:
+      $ref: '#/channels/highvoltage'
+  onHighVoltageRecieved:
+    action: receive
+    messages:
+      - $ref: '#/channels/highvoltage/messages/ElectricInfoGenerated'
+    channel:
+      $ref: '#/channels/highvoltage'
+  onAnalysisSent:
+    action: send
+    messages:
+      - $ref: '#/channels/analyzed/messages/AnalysisGenerated'
+    channel:
+      $ref: '#/channels/analyzed'
+  onAnalysisRecieved:
+    action: receive
+    messages:
+      - $ref: '#/channels/highvoltage/messages/ElectricInfoGenerated'
+    channel:
+      $ref: '#/channels/highvoltage'
+components:
+  messages:
+    ElectricInfoGenerated:
+      name: ElectricInfoGenerated
+      title: London Grid Information
+      summary: Info on a specific state of the electric grid of London.
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ElectricInfo'
+    AnalysisGenerated:
+      name: Analysis
+      title: Analyzed Grid Information
+      summary: Categorization of a specific state of the electrical grid of London.
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/Analyzed'
+  schemas:
+    Analyzed:
+      type: object
+      properties:
+        id:
+          type: integer
+        class:
+          type: string
+    ElectricInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID of the property, registered in the PostgreSQL database.
+        date:
+          type: string
+          description: Day, month, year of the info screenshot.
+          pattern: dd-MM-yyyy
+        time:
+          type: string
+          description: Hour, month, second of the info screenshot.
+          pattern: hh-mm-ss
+        global_active_power:
+          type: number
+          description: Global active power of the network on the moment of the screnshot.
+        global_reactive_power:
+          type: number
+          description: Global reactive power of the network on the moment of the screnshot.
+        voltage:
+          type: number
+          description: Average voltage of the network on the moment of the screnshot.
+        global_intensity:
+          type: number
+          description: Amperage of the network on the moment of the screnshot.
+        sub_metering_1:
+          type: number
+          description: >-
+            First level submetering of the network on the moment of the
+            screnshot.
+        sub_metering_2:
+          type: number
+          description: >-
+            Second level submetering of the network on the moment of the
+            screnshot.
+        sub_metering_3:
+          type: number
+          description: >-
+            Third level submetering of the network on the moment of the
+            screnshot.

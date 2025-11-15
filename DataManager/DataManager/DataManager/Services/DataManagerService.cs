@@ -1,6 +1,10 @@
 ﻿using Azure.Core;
 using DataManager.Model;
 using Grpc.Core;
+using Microsoft.EntityFrameworkCore;
+using MQTTnet;
+using Newtonsoft.Json;
+
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace DataManager.Services
@@ -8,9 +12,11 @@ namespace DataManager.Services
     public class DataManagerService : DataManager.DataManagerBase
     {
         private DatabaseContext _dbContext;
+        private IMqttClient _mqttClient;
 
-        public DataManagerService(DatabaseContext dbContext) {
+        public DataManagerService(DatabaseContext dbContext, IMqttClient mqttClient) {
             _dbContext = dbContext;
+            _mqttClient = mqttClient;
         }
 
         public override async Task<Response> Create(ElectricInfo request, ServerCallContext context)
@@ -25,6 +31,23 @@ namespace DataManager.Services
             response.Result = 200;
             response.List = new ElectricInfoList();
 
+            MqttClientOptions options = new MqttClientOptionsBuilder()
+                .WithClientId("datamanager")
+                .WithTcpServer("mosquitto", 1883)
+                .Build();
+
+            await _mqttClient.ConnectAsync(options, CancellationToken.None);
+
+            string json = JsonConvert.SerializeObject(newEntity);
+
+            var applicationMessage = new MqttApplicationMessageBuilder()
+            .WithTopic("newelectricinfo")
+            .WithPayload(json)
+            .Build();
+
+            await _mqttClient.PublishAsync(applicationMessage, CancellationToken.None);
+
+            await _mqttClient.DisconnectAsync();
             return response;
         }
 
@@ -48,12 +71,11 @@ namespace DataManager.Services
             list.Info.Add(info);
 
             Response response = new Response();
-            response.Message = "Failed to read ElectricInfo!";
-            response.Result = 400;
+            response.Message = "Successfully read ElectricInfo!";
+            response.Result = 200;
             response.List = list;
 
             return response;
-
         }
         public override async Task<Response> Update(ElectricInfo request, ServerCallContext context)
         {
@@ -116,9 +138,34 @@ namespace DataManager.Services
             return response;
         }
 
+        public override async Task<Response> ReadAllInDateSpan(DateSpan request, ServerCallContext context)
+        {
+            string[] dateValuesStart = request.StartDate.Split('-');
+            string[] dateValuesEnd = request.EndDate.Split('-');
+
+            DateOnly dateStart = new DateOnly(Int32.Parse(dateValuesStart[2]), Int32.Parse(dateValuesStart[1]), Int32.Parse(dateValuesStart[0]));
+            DateOnly dateEnd = new DateOnly(Int32.Parse(dateValuesEnd[2]), Int32.Parse(dateValuesEnd[1]), Int32.Parse(dateValuesEnd[0]));
+
+            List<ElectricInfoDB> electricInfoDBs = await _dbContext.ElectricInfos.Where(e => e.Date >= dateStart && e.Date <= dateEnd).ToListAsync();
+            List<ElectricInfo> electricInfoList = new List<ElectricInfo>();
+
+            Response response = new Response();
+            response.Message = "Succesfully got all valid ElectricInfo!";
+            response.Result = 200;
+            response.List = new ElectricInfoList();
+
+            foreach (ElectricInfoDB electricInfoDB in electricInfoDBs)
+            {
+                ElectricInfo info = ConvertFromDBFormat(electricInfoDB);
+                response.List.Info.Add(info);
+            }
+
+            return response;
+        }
+
         private ElectricInfoDB ConvertToDBFormat(ElectricInfo request)
         {
-            string[] dateValues = request.Date.Split('/');
+            string[] dateValues = request.Date.Split('-');
             string[] timeValues = request.Time.Split(":");
 
             ElectricInfoDB newEntity = new ElectricInfoDB
@@ -146,9 +193,13 @@ namespace DataManager.Services
         {
             ElectricInfo info = new ElectricInfo();
 
-            info.Date = $"{electricInfoDB.Date.Day}/{electricInfoDB.Date.Month}/{electricInfoDB.Date.Year}";
-            info.Time = $"{electricInfoDB.Time.Hour}:{electricInfoDB.Time.Minute}:{electricInfoDB.Time.Second}";
-
+            string hour = electricInfoDB.Time.Hour < 10 ? $"0{electricInfoDB.Time.Hour}" : $"{electricInfoDB.Time.Hour}";
+            string minute = electricInfoDB.Time.Minute < 10 ? $"0{electricInfoDB.Time.Minute}" : $"{electricInfoDB.Time.Minute}";
+            string second = electricInfoDB.Time.Second < 10 ? $"0{electricInfoDB.Time.Second}" : $"{electricInfoDB.Time.Second}";
+            
+            info.Date = $"{electricInfoDB.Date.Day}-{electricInfoDB.Date.Month}-{electricInfoDB.Date.Year}";
+            info.Time = $"{hour}:{minute}:{second}";
+                
             info.GlobalActivePower = electricInfoDB.Global_active_power;
             info.GlobalIntensity = electricInfoDB.Global_intensity;
             info.GlobalReactivePower = electricInfoDB.Global_reactive_power;

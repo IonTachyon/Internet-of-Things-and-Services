@@ -1,0 +1,114 @@
+networks:
+    iots:
+        external: true
+        
+volumes:
+    postgres_data:
+        external: true
+        name: postgres_data
+        
+services:
+    postgres:
+        container_name: postgres
+        image: postgres
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+        environment:
+            - POSTGRES_USER=iontachyon
+            - POSTGRES_PASSWORD=testpassword11
+        ports:
+            - "5432:5432"
+        networks:
+            - iots
+            
+    mosquitto:
+        container_name: mosquitto
+        image: eclipse-mosquitto:2
+        ports:
+            - "1883:1883"
+        networks:
+            - iots
+        volumes:
+            - C:\Projects\IoTS\MQTT\mosquitto.conf:/mosquitto/config/mosquitto.conf
+            
+    migration:
+        container_name: migration
+        build:
+            context: ./Migrations
+            dockerfile: Dockerfile
+        networks:
+            - iots
+        depends_on:
+            - postgres
+         
+    datamanager:
+        container_name: datamanager
+        build:
+            context: ./DataManager/DataManager/DataManager
+            dockerfile: Dockerfile
+        ports:
+            - "5041:8080"
+        networks:
+            - iots
+        depends_on:
+            - migration
+            - mosquitto
+                
+    gateway:
+        container_name: gateway
+        build:
+            context: ./Gateway
+            dockerfile: Dockerfile
+        ports:
+            - "8080:80"
+        networks:
+            - iots
+        depends_on:
+            - datamanager
+            
+    eventmanager:
+        container_name: eventmanager
+        build:
+            context: ./EventManager
+            dockerfile: Dockerfile
+        networks:
+            - iots
+        depends_on:
+            - gateway
+    
+    analytics:
+        container_name: analytics
+        build:
+            context: ./analytics
+        environment:
+            NODE_ENV: production
+        networks:
+            - iots
+        ports:
+            - 6000:6000
+        depends_on:
+            - gateway
+            - nats
+            - mlaas
+            
+    nats:
+        container_name: nats
+        image: nats:2.12.1-alpine3.22
+        ports:
+            - "4222:4222"
+        networks:
+            - iots
+            
+    mlaas:
+        container_name: mlaas
+        build:
+            context: ./MLaaS
+            dockerfile: Dockerfile
+        ports:
+            - "8081:80"
+        networks:
+            - iots  
+        
+
+
+
